@@ -1,3 +1,4 @@
+import numpy as np
 from scipy.io import wavfile
 
 import vita
@@ -45,6 +46,25 @@ def test_render(bpm=120.0, sample_rate=48000, note_dur=1.0, render_dur=3.0, pitc
     assert sample_rate == int(audio.shape[1] / render_dur) # assume int
 
     wavfile.write("generated_preset.wav", sample_rate, audio.T)
+
+    # Try the new render_notes nanobind method
+    audio = synth.render_notes(
+        np.asarray([pitch, pitch+1]),
+        np.asarray([velocity, velocity*0.5]),
+        np.asarray([0.1, note_dur+0.1]),
+        np.asarray([note_dur, note_dur]),
+        render_dur
+    )
+    wavfile.write("generated_notes.wav", sample_rate, audio.T)
+    # Also generate chords
+    audio = synth.render_notes(
+        np.asarray([60, 64, 67, 48, 51, 55]),
+        np.asarray([0.8, 0.7, 0.6, 0.5, 0.4, 0.3]),
+        np.asarray([0.1, 0.1, 0.1, 2.6, 2.6, 2.6]),
+        np.asarray([2.0, 2.0, 2.0, 2.0, 2.0, 2.0]),
+        5.0
+    )
+    wavfile.write("generated_chords.wav", sample_rate, audio.T)
 
     # Dump current state to json text
     json_text = synth.to_json()

@@ -3,6 +3,8 @@
 # Test files
 generated_preset.vital
 generated_preset.wav
+generated_notes.wav
+generated_chords.wav
 
 # Prerequisites
 *.d

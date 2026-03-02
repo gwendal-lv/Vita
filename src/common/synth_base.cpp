@@ -652,6 +652,118 @@ nb::ndarray<float, nb::shape<2, -1>, nb::numpy> SynthBase::renderAudioToNumpy(co
       data, {2, static_cast<size_t>(total_samples)}, owner);
 }
 
+// Multi-note rendering with per-note start times
+struct MidiEventNB {
+  int sample;
+  int note;
+  float value; // velocity for On, lift for Off
+  bool on;
+
+  // Operator used to std::sort events by sample time. For events at the same sample,
+  // process note-offs before note-ons to avoid voice stealing artifacts.
+  bool operator<(const MidiEventNB& other) const {
+    if (sample != other.sample)
+      return sample < other.sample;
+    return (!on && other.on);
+  }
+};
+
+nb::ndarray<float, nb::shape<2, -1>, nb::numpy> SynthBase::renderNotesToNumpy(
+    nb::ndarray<int, nb::shape<-1>, nb::c_contig, nb::device::cpu> midi_pitches,
+    nb::ndarray<float, nb::shape<-1>, nb::c_contig, nb::device::cpu> velocities,
+    nb::ndarray<float, nb::shape<-1>, nb::c_contig, nb::device::cpu> start_time,
+    nb::ndarray<float, nb::shape<-1>, nb::c_contig, nb::device::cpu> notes_durations,
+    float render_duration) {
+
+  // Validate inputs
+  size_t num_notes = midi_pitches.shape(0);
+  if (velocities.shape(0) != num_notes || start_time.shape(0) != num_notes ||
+      notes_durations.shape(0) != num_notes) {
+    throw std::runtime_error("Input arrays must have the same length.");
+  }
+
+  static constexpr int kFadeSamples = 200;
+  static constexpr int kBufferSize = 64;
+  static constexpr int kPreProcessSamples = 256;
+
+  ScopedLock lock(getCriticalSection());
+
+  engine_->allSoundsOff();
+  processModulationChanges();
+  engine_->updateAllModulationSwitches();
+  int kSampleRate = getSampleRate();
+
+  // Preprocess modulation/state
+  double sample_time = 1.0 / kSampleRate;
+  double current_time = -kPreProcessSamples * sample_time;
+  for (int s = 0; s < kPreProcessSamples; s += kBufferSize) {
+    engine_->correctToTime(current_time);
+    current_time += kBufferSize * sample_time;
+    engine_->process(kBufferSize);
+  }
+
+  // Build MIDI event list
+  std::vector<MidiEventNB> events;
+  events.reserve(num_notes * 2);
+  int total_samples = static_cast<int>(render_duration * kSampleRate);
+  for (size_t i = 0; i < num_notes; ++i) {
+    int note = midi_pitches(i);
+    float vel = velocities(i);
+    int on_sample = static_cast<int>(std::max(0.0f, start_time(i)) * kSampleRate);
+    int off_sample = static_cast<int>((std::max(0.0f, start_time(i)) + std::max(0.0f, notes_durations(i))) * kSampleRate);
+
+    // Clamp within render window (events beyond render are ignored)
+    if (on_sample < total_samples) {
+      events.push_back({on_sample, note, vel, true});
+    }
+    if (off_sample <= total_samples && off_sample > on_sample) {
+      events.push_back({off_sample, note, 0.5f, false});
+    }
+  }
+  std::sort(events.begin(), events.end());  // uses the "<" operator defined above
+
+  size_t total_frames = static_cast<size_t>(total_samples) * 2; // stereo
+  auto* data = new float[total_frames](); // zero-initialized
+
+  const vital::mono_float* engine_output = (const vital::mono_float*)engine_->output(0)->buffer;
+
+  size_t event_idx = 0;
+  for (int samples = 0; samples < total_samples; samples += kBufferSize) {
+    int block_size = std::min(kBufferSize, total_samples - samples);
+
+    // Dispatch all events that occur within this block
+    while (event_idx < events.size() && events[event_idx].sample < samples + block_size) {
+      const auto& ev = events[event_idx];
+      int rel_sample = std::max(0, ev.sample - samples);
+      if (ev.on)
+        engine_->noteOn(ev.note, ev.value, rel_sample, 0);
+      else
+        engine_->noteOff(ev.note, ev.value, rel_sample, 0);
+      ++event_idx;
+    }
+
+    engine_->correctToTime(current_time);
+    current_time += block_size * sample_time;
+    engine_->process(block_size);
+    updateMemoryOutput(block_size, engine_->output(0)->buffer);
+
+    for (int i = 0; i < block_size; ++i) {
+      int baseSample = samples + i;
+      vital::mono_float t = (total_samples - baseSample) / (1.0f * kFadeSamples);
+      t = vital::utils::min(t, 1.0f);
+      data[baseSample] = t * engine_output[vital::poly_float::kSize * i];
+      data[baseSample + total_samples] = t * engine_output[vital::poly_float::kSize * i + 1];
+    }
+
+    if (block_size < kBufferSize)
+      break;
+  }
+
+  nb::capsule owner(data, [](void* p) noexcept { delete[] (float*)p; });
+  return nb::ndarray<float, nb::shape<2, -1>, nb::numpy>(
+      data, {2, static_cast<size_t>(total_samples)}, owner);
+}
+
 bool SynthBase::renderAudioToFile2(const std::string& output_path, const int& midi_note, float velocity, float note_dur, float render_dur) {
     File output_file(output_path);
     if (!output_file.hasWriteAccess()) {

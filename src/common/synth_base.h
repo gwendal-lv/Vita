@@ -98,6 +98,12 @@ class SynthBase : public MidiManager::Listener {
     void renderAudioToFile(File file, std::vector<int> notes, float velocity, float note_dur, float render_dur, bool render_images);
     bool renderAudioToFile2(const std::string& output_path, const int& midi_note, float velocity, float note_dur, float render_dur);
     nb::ndarray<float, nb::shape<2, -1>, nb::numpy> renderAudioToNumpy(const int& midi_note, float velocity, float note_dur, float render_dur);
+    nb::ndarray<float, nb::shape<2, -1>, nb::numpy> renderNotesToNumpy(
+        nb::ndarray<int, nb::shape<-1>, nb::c_contig, nb::device::cpu> midi_pitches,
+        nb::ndarray<float, nb::shape<-1>, nb::c_contig, nb::device::cpu> velocities,
+        nb::ndarray<float, nb::shape<-1>, nb::c_contig, nb::device::cpu> start_time,
+        nb::ndarray<float, nb::shape<-1>, nb::c_contig, nb::device::cpu> notes_durations,
+        float render_duration);
     void renderAudioForResynthesis(float* data, int samples, int note);
     bool saveToFile(File preset);
     bool saveToActiveFile();

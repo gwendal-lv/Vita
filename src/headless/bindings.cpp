@@ -602,6 +602,23 @@ NB_MODULE(vita, m) {
              "Returns:\n"
              "  bool: True if rendering was successful, False otherwise.")
 
+        .def("render_notes", &HeadlessSynth::renderNotesToNumpy,
+             nb::arg("midi_pitches"),
+             nb::arg("velocities"),
+             nb::arg("start_time"),
+             nb::arg("notes_durations"),
+             nb::arg("render_duration"),
+             "Renders multiple notes to a numpy array.\n\n"
+             "Parameters:\n"
+             "  midi_pitches (np.ndarray[int]): MIDI pitches per note.\n"
+             "  velocities (np.ndarray[float]): Velocities [0-1] per note.\n"
+             "  start_time (np.ndarray[float]): Start times in seconds per note.\n"
+             "  notes_durations (np.ndarray[float]): Durations in seconds per note.\n"
+             "  render_duration (float): Total render length in seconds.\n"
+             "\n"
+             "Returns:\n"
+             "  np.ndarray: Stereo audio array of shape (2, samples).")
+
         .def("load_json", &HeadlessSynth::loadFromString, nb::arg("json"))
 
         .def("to_json", &HeadlessSynth::pyToJson)
