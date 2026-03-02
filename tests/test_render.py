@@ -105,3 +105,7 @@ def test_render(bpm=120.0, sample_rate=48000, note_dur=1.0, render_dur=3.0, pitc
         # linearly interpolate
         y = info.min + pct * (info.max-info.min)
         controls["env_1_delay"].set(y)
+
+
+if __name__ == "__main__":
+    test_render()

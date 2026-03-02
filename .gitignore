@@ -1,3 +1,9 @@
+# PyCharm and CLion
+/.idea/
+# Test files
+generated_preset.vital
+generated_preset.wav
+
 # Prerequisites
 *.d
 

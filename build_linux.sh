@@ -1,14 +1,13 @@
-# export LIBDIR=/usr/lib/python3.10
-# export PYTHONLIBPATH=/usr/lib/python3.10
-# export PYTHONINCLUDEPATH=/usr/include/python3.10
+export LIBDIR=/usr/lib/python3.12
+export PYTHONLIBPATH=/usr/lib/python3.12
+export PYTHONINCLUDEPATH=/usr/include/python3.12
 
 echo "PYTHONLIBPATH: $PYTHONLIBPATH"
 echo "PYTHONINCLUDEPATH: $PYTHONINCLUDEPATH"
 echo "LIBDIR: $LIBDIR"
 
-yum install -y \
-libsndfile \
-libsndfile-devel
+# On ubuntu: apt install -y libsndfile1 libsndfile1-dev
+# Original from the repo: yum install -y libsndfile libsndfile-devel
 
 echo "Build Nanobind"
 cd third_party/nanobind

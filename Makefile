@@ -1,4 +1,4 @@
-PYTHON := $(shell which python)
+PYTHON := $(shell which python3 || which python)
 
 PYTHONINCLUDEPATH := $(shell $(PYTHON) -c "import sysconfig; print(sysconfig.get_path('include'))")
 
@@ -17,7 +17,7 @@ BUILD_DATE="$(shell date +'%Y %m %d %H %M')"
 
 PAID := 1
 
-VERSION := $(shell sh -c 'grep -oh -m 1 "VERSION=[0-9\.]*" standalone/builds/linux/Makefile | cut -d "=" -f 2')
+VERSION := $(shell grep -oh -m 1 "VERSION=[0-9\.]*" headless/builds/linux/Makefile | cut -d "=" -f 2)
 
 MACHINE := $(shell sh -c 'uname -m 2> /dev/null || echo not')
 ifneq (,$(findstring aarch,$(MACHINE)))
@@ -111,9 +111,6 @@ effects_vst3:
 	$(MAKE) -C effects/builds/linux_vst VST3 CONFIG=$(CONFIG) AR=gcc-ar SIMDFLAGS="$(SIMDFLAGS)" GLFLAGS="$(GLFLAGS)" BUILD_DATE=$(BUILD_DATE)
 
 headless_server:
-	cd headless/builds/linux
-	ldconfig
-	cd ../../..
 	$(MAKE) VERBOSE=1 -C headless/builds/linux CONFIG=$(CONFIG) SIMDFLAGS="$(SIMDFLAGS)" GLFLAGS="$(GLFLAGS)" BUILD_DATE=$(BUILD_DATE) LIBS="-lstdc++fs" LDFLAGS="-L$(PYTHONLIBPATH)" CXXFLAGS="-I$(PYTHONINCLUDEPATH)"
 	cp headless/builds/linux/build/libvita.so tests/vita.so
 	strip --strip-unneeded tests/vita.so
