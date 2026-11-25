@@ -1,6 +1,6 @@
 # PyCharm and CLion
 /.idea/
-# Test files
+# Test files (audios and presets)
 generated_preset.vital
 generated_preset.wav
 generated_notes.wav
