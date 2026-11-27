@@ -46,8 +46,10 @@ namespace vital {
     private:
       RandomValues(int num_poly_floats) {
         data_ = std::make_unique<poly_float[]>(num_poly_floats);
-        utils::RandomGenerator generator(-1.0f, 1.0f);
-        generator.seed(kSeed);
+        // Seeded explicitly: this lazily-created static must not consume a value of the
+        // process-wide seed counter, otherwise only the first synth of a process would see
+        // shifted seeds.
+        utils::RandomGenerator generator(-1.0f, 1.0f, kSeed);
         for (int i = 0; i < num_poly_floats; ++i)
           data_[i] = generator.polyNext();
       }

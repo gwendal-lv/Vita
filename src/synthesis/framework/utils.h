@@ -49,6 +49,8 @@ namespace vital {
         static int next_seed_;
           
         RandomGenerator(mono_float min, mono_float max) : engine_(next_seed_++), distribution_(min, max) { }
+        // Explicit seed: doesn't take (nor advance) a value from the process-wide next_seed_ counter.
+        RandomGenerator(mono_float min, mono_float max, int seed) : engine_(seed), distribution_(min, max) { }
         RandomGenerator(const RandomGenerator& other) :
             engine_(next_seed_++), distribution_(other.distribution_.min(), other.distribution_.max()) { }
 

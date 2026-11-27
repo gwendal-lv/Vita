@@ -213,8 +213,29 @@ class SynthBase : public MidiManager::Listener {
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SynthBase)
 };
 
-class HeadlessSynth : public SynthBase {
+// Resets the process-wide RandomGenerator seed counter. Used as the first base class of
+// HeadlessSynth so that it runs before any processor (and its RandomGenerator) is built.
+class RandomSeedResetter {
   public:
+    explicit RandomSeedResetter(int random_seed) : random_seed_(random_seed) {
+      vital::utils::RandomGenerator::next_seed_ = random_seed;
+    }
+
+    int getRandomSeed() const { return random_seed_; }
+
+  private:
+    int random_seed_;
+};
+
+// The random streams of a HeadlessSynth only depend on its random_seed (and on the sequence of
+// calls made on it), not on the synths created before in the process. Not thread-safe: synths
+// must not be built (or load presets) concurrently in one process.
+class HeadlessSynth : private RandomSeedResetter, public SynthBase {
+  public:
+    explicit HeadlessSynth(int random_seed = 0) : RandomSeedResetter(random_seed), SynthBase() { }
+
+    using RandomSeedResetter::getRandomSeed;
+
     virtual const CriticalSection& getCriticalSection() override {
       return critical_section_;
     }

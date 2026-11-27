@@ -6,6 +6,7 @@
 #include <nanobind/stl/array.h>
 #include <nanobind/stl/list.h>
 #include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/tuple.h>
 
 #include "compressor.h"
 #include "processor_router.h"
@@ -265,6 +266,10 @@ public:
 };
 
 NB_MODULE(vita, m) {
+
+    m.def("get_random_seed_counter", []() { return vital::utils::RandomGenerator::next_seed_; },
+          "Returns the current value of the process-wide counter used to seed Vital's random "
+          "generators (for tests and debugging). Each new Synth resets it to its random_seed.");
 
     m.def("get_modulation_sources", &get_modulation_sources,
 		"Returns a list of allowed modulation sources.");
@@ -547,14 +552,22 @@ NB_MODULE(vita, m) {
     
     // Expose the SynthBase class, specifying ProcessorRouter as its base
     nb::class_<HeadlessSynth>(m, "Synth")
-        .def(nb::init<>())  // Ensure there's a default constructor or adjust
-                            // accordingly
-                            // Bind the first overload of connectModulation
+        .def(nb::init<int>(), nb::arg("random_seed") = 0,
+             "Create a synth. Its random generators (oscillator random phases, random LFOs, "
+             "noise...) are seeded from random_seed, so that two synths created with the same "
+             "random_seed render the same audio, whatever was created before in the process.")
+        .def_prop_ro("random_seed", [](const HeadlessSynth &synth) { return synth.getRandomSeed(); },
+                     "The random_seed this synth was created with.")
 
         .def("__getstate__", [](HeadlessSynth &synth) {
-               return const_cast<HeadlessSynth &>(synth).pyToJson();  // Removes const safely
+               return std::make_tuple(synth.pyToJson(), synth.getRandomSeed());
+        })
+        .def("__setstate__", [](HeadlessSynth &synth, const std::tuple<std::string, int> &state) {
+             new (&synth) HeadlessSynth(std::get<1>(state));
+             synth.loadFromString(std::get<0>(state));
         })
         .def("__setstate__", [](HeadlessSynth &synth, const std::string &json) {
+             // State pickled by vita <= 0.0.51 (JSON only)
              new (&synth) HeadlessSynth();
              synth.loadFromString(json);
         })

@@ -82,6 +82,22 @@ synth.load_init_preset()
 synth.clear_modulations()
 ```
 
+### Reproducible renders (`random_seed`)
+
+Vital's random sources (oscillator and unison random phases, random LFOs, random triggers, noise...) are seeded from the `random_seed` of each synth:
+
+```python
+synth = vita.Synth()                # random_seed=0 by default
+synth = vita.Synth(random_seed=3)   # another random variation of the same preset
+print(synth.random_seed)
+```
+
+Two synths created with the same `random_seed`, with the same calls made on them (preset, notes, settings), render the same audio, whatever was created before in the process. Different seeds give different audio for presets that use random sources; fully deterministic presets render the same with every seed.
+
+Limitations: the seeds come from a process-wide counter, reset when a synth is constructed. Build and use synths one at a time per process (not concurrently in several threads), and avoid interleaving calls on several synths alive at the same time: voices are created lazily during a render and take the next values of the counter. `vita.get_random_seed_counter()` returns the current counter value (for debugging).
+
+**Behavior change in 0.0.52:** before, the seeds depended on how many synths had been created earlier in the process, so the 1st, 2nd, 3rd... `vita.Synth()` of a process rendered presets with random sources differently. Renders of such presets therefore differ from earlier versions, except that `random_seed=1` gives the same audio as the first `vita.Synth()` of a process in 0.0.51 (observed on the presets we tested). Deterministic presets render exactly as before.
+
 Documentation is not yet automated. Please browse [bindings.cpp](https://github.com/DBraun/Vita/blob/main/src/headless/bindings.cpp) to get a sense of how the code works.
 
 ### Issues
